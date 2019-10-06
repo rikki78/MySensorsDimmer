@@ -148,13 +148,14 @@ uint8_t request_values(uint8_t set)
     requestToggle = 0;
   request(CHILD_ID_DIM_1 + requestToggle, V_DIMMER);  
   // request(CHILD_ID_DIM_2, V_DIMMER);  
-  /* 
+  
   Serial.print("Request values ");
-  Serial.println(CHILD_ID_DIM_1 + requestToggle, DEC); */
+  Serial.println(CHILD_ID_DIM_1 + requestToggle, DEC);
   #ifdef DIS_INT_ON_TX
     wait(10);
     EIFR = bit (INTF1);  // clear flag for interrupt 1 to avoid triggering on sending msg
   #endif
+  return (true);
 }
 
 void configLoad()
