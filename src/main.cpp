@@ -28,7 +28,6 @@ typedef struct
     uint16_t pollTime; 
 }CFG_VAL;
 
-#define DIMMER_DEFAULT_DIMMING  20
 
 CFG_VAL configValues;
 
@@ -47,20 +46,20 @@ extern const PROGMEM CFG_PAR configPar[] =
 /*  006 */    {&configValues.localMode, 0, 1, 0},
 /*  007 */    {&configValues.qualSendFrequency, 1, 1000, 50},
 /*  008 */    {&configValues.pollTime, 1, 1000, 30},
-
 };
 
 
 boolean metric = true, motion, lastMotion, motionChange; 
-#define QUAL_BFR_SIZE 2
-unsigned long sendOk, sendQual, totalSends, msgSendTotal;
+#define QUAL_BFR_SIZE 5
+uint16_t    sendOk, sendQual, msgSendTotal, sendFail;
+static  uint16_t    totalSends;/* 
 uint16_t    sendQualBfr[QUAL_BFR_SIZE];
-uint8_t     sendQualIdx;
+uint8_t     sendQualIdx = 0;
 uint16_t    sendTotalBfr[QUAL_BFR_SIZE];
 uint16_t    msgTotalBfr[QUAL_BFR_SIZE];
-uint16_t    sendFailBfr[QUAL_BFR_SIZE], sendFail;
-;
-
+uint16_t    sendFailBfr[QUAL_BFR_SIZE],  ;*/
+uint32_t qual; 
+uint32_t qualFail;
 boolean waitForSettings = false, sendQuality = false;
 
 #define CHILD_ID_HUM 0
@@ -165,10 +164,10 @@ void configLoad()
     dimmer[i].setFadeIn(configValues.fadeIn[i]);
     dimmer[i].setFadeOut(configValues.fadeOut[i]);
   }
-//  controller.begin(configValues.pollTime);
+  controller.begin(configValues.pollTime);
 }
 
-void requestParameters(uint8_t parameterToRead)
+uint8_t requestParameters(uint8_t parameterToRead)
 {
   send(msgGetSettings.set(parameterToRead));  // request settings from controller
   /* Serial.print("Requesting ");
@@ -176,7 +175,7 @@ void requestParameters(uint8_t parameterToRead)
   
 }
 
-void paramStatusReport(uint8_t status)
+uint8_t paramStatusReport(uint8_t status)
 {
   if (status == ST_NEW_PAR_AV)
   {
@@ -286,9 +285,34 @@ boolean resend(MyMessage &msg, int repeats) // Resend messages if not received b
         repeatDelay += 250 + (MY_NODE_ID * 4);
       sendQual++;
     } 
+   /*  Serial.println(totalSends); */
     totalSends++; // number of messages sent (including retries)
+   /*  Serial.println(totalSends);
+     
+        Serial.print("total bfr ");
+        Serial.print(sendTotalBfr[sendQualIdx]);
+        Serial.print(" index ");
+        Serial.print(sendQualIdx); */
     if ((totalSends % configValues.qualSendFrequency) == 0)
     {
+       qual = ((totalSends - sendQual) * 1000UL) / totalSends;
+        qualFail = ((msgSendTotal - sendFail) * 1000UL) / msgSendTotal;
+       #ifdef DEBUG
+    Serial.print("Quality ");
+    Serial.print(qual);
+    Serial.print(" Total ");
+    Serial.print(totalSends);
+    Serial.print(" send ok ");
+    Serial.print(sendOk);
+    Serial.print(" fail ");
+    Serial.println(qualFail);
+  #endif
+        sendOk = 0;
+        totalSends = 0;
+        sendQual = 0;
+        sendFail = 0;
+        msgSendTotal = 0;
+/* 
         sendQualBfr[sendQualIdx] = sendQual;
         sendQual = 0;
         sendTotalBfr[sendQualIdx] = totalSends;
@@ -298,8 +322,9 @@ boolean resend(MyMessage &msg, int repeats) // Resend messages if not received b
         msgTotalBfr[sendQualIdx] = msgSendTotal;
         msgSendTotal = 0;
         if (++sendQualIdx >= QUAL_BFR_SIZE)
-            sendQualIdx = 0;
+            sendQualIdx = 0; */
         sendQuality = true;
+       
     }
     repeat++;
   }
@@ -316,6 +341,7 @@ boolean resend(MyMessage &msg, int repeats) // Resend messages if not received b
 
 void sendConnectionQuality(void)
 {
+  /* 
   unsigned long sendQualTotal = 0, sendTotal = 0, sendFailTotal = 0, msgTotal = 0;
   for (uint8_t i = 0; i < QUAL_BFR_SIZE; i++)
     sendQualTotal += sendQualBfr[i];
@@ -326,11 +352,11 @@ void sendConnectionQuality(void)
   for (uint8_t i = 0; i < QUAL_BFR_SIZE; i++)
     msgTotal += msgTotalBfr[i];
     
-  unsigned long qual = ((sendTotal - sendQualTotal) * 1000UL) / sendTotal;
-  unsigned long qualFail = ((msgTotal - sendFailTotal) * 1000UL) / msgTotal;
+  uint32_t qual = ((sendTotal - sendQualTotal) * 1000UL) / sendTotal;
+  uint32_t qualFail = ((msgTotal - sendFailTotal) * 1000UL) / msgTotal; */
   resend(msgConnectionFail.set(qualFail), 2);
   resend(msgConnectionQual.set(qual), 2);
-  #ifdef DEBUG
+ /*  #ifdef DEBUG
     Serial.print("Quality ");
     Serial.print(qual);
     Serial.print(" Total ");
@@ -339,7 +365,7 @@ void sendConnectionQuality(void)
     Serial.print(sendOk);
     Serial.print(" fail ");
     Serial.println(qualFail);
-  #endif
+  #endif */
 }
 
 void pir_sensor(void)
